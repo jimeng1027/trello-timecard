@@ -1,23 +1,23 @@
 {
   "manifest_version": 1,
-  "name": "Timecard — Clock In/Out",
+  "name": "Timecard – Clock In/Out",
   "slug": "timecard-clock-in-out",
   "scopes": ["read", "write"],
   "connectors": {},
-  "author": "You",
+  "author": "Jie Meng",
   "description": "One-click clock in/out on cards. Logs entries and shows total time.",
   "icon": {
     "url": "https://jimeng1027.github.io/trello-timecard/icon.png"
   },
   "capabilities": {
     "card-buttons": {
-      "url": "https://jimeng1027.github.io/trello-timecard/index.html#card-buttons"
+      "url": "https://jimeng1027.github.io/trello-timecard/index.html"
     },
     "card-badges": {
-      "url": "https://jimeng1027.github.io/trello-timecard/index.html#card-badges"
+      "url": "https://jimeng1027.github.io/trello-timecard/index.html"
     },
     "show-settings": {
-      "url": "https://jimeng1027.github.io/trello-timecard/index.html#settings"
+      "url": "https://jimeng1027.github.io/trello-timecard/index.html"
     }
   },
   "domains": ["jimeng1027.github.io"],
