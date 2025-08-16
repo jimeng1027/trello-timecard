@@ -81,6 +81,17 @@
 
   window.TrelloPowerUp.initialize(
     {
+      // 看板顶部按钮（用于确认代码加载成功）
+      'board-buttons': function(t){
+        return [{
+          text: 'Timecard',
+          callback: function(t){
+            return t.popup({ title: 'Timecard Loaded', url: './index.html', height: 120 });
+          }
+        }];
+      },
+
+      // 卡片里的打卡按钮
       'card-buttons': async function(t){
         const me = await t.member('id','fullName');
         const active = await getActiveStart(t, me.id);
@@ -88,11 +99,15 @@
         const cb = active ? () => clockOut(t) : () => clockIn(t);
         return [{ text: label, callback: cb }];
       },
+
+      // 今日总时长徽章
       'card-badges': async function(t){
         const mins = await getTodayMinutesForMe(t);
         if(mins<=0) return [];
         return [{ text: 'Today: ' + fmtHM(mins), color: 'blue' }];
       },
+
+      // 设置页（可选）
       'show-settings': function(t){
         return t.modal({ title:'Timecard Settings', url:'./index.html', height:220 });
       }
@@ -100,4 +115,3 @@
     { appKey: APP_KEY, appName: APP_NAME }
   );
 })();
-
