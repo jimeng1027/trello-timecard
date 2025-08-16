@@ -110,6 +110,6 @@
         height: 220
       });
     }
-  }, { appKey: 'YOUR_PUBLIC_APP_KEY' });
+  }, { appKey: '0fc02c029029a4e0d8bfa032fbf58387' });
 
 })();
