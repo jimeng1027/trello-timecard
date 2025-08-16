@@ -11,24 +11,23 @@
   "scopes": ["read", "write"],
   "connectors": {},
   "author": "You",
-  "description": "One‑click clock in/out on cards. Logs entries and shows total time.",
+  "description": "One-click clock in/out on cards. Logs entries and shows total time.",
   "icon": {
-    "url": "https://raw.githubusercontent.com/your-org/your-repo/main/icon.png"
+    "url": "https://jimeng1027.github.io/trello-timecard/icon.png"
   },
   "capabilities": {
     "card-buttons": {
-      "url": "https://YOUR-HOST/index.html#card-buttons"
+      "url": "https://jimeng1027.github.io/trello-timecard/index.html#card-buttons"
     },
     "card-badges": {
-      "url": "https://YOUR-HOST/index.html#card-badges"
+      "url": "https://jimeng1027.github.io/trello-timecard/index.html#card-badges"
     },
     "show-settings": {
-      "url": "https://YOUR-HOST/index.html#settings"
+      "url": "https://jimeng1027.github.io/trello-timecard/index.html#settings"
     }
   },
-  "domains": ["YOUR-HOST"],
+  "domains": ["jimeng1027.github.io"],
   "app": {
-    "frameUrl": "https://YOUR-HOST/index.html"
+    "frameUrl": "https://jimeng1027.github.io/trello-timecard/index.html"
   }
-}
 }
