@@ -1,115 +1,103 @@
-(function(){
-  const Promise = TrelloPowerUp.Promise;
+(function () {
+  const APP_NAME = 'XS Post production timecard';
+  const APP_KEY  = '0fc02c029029a4e0d8bfa032fbf58387';
 
-  const KEY_ENTRIES = 'timecard.entries';
-  const KEY_ACTIVE_PREFIX = 'timecard.active.'; // + memberId
+  const KEY_ACTIVE_PREFIX = 'timecard:active:';
+  const KEY_DAYLOG_PREFIX = 'timecard:daylog:';
   const CHECKLIST_NAME = 'Time Entries';
 
-  const fmtHM = (mins) => {
-    const h = Math.floor(mins / 60);
-    const m = mins % 60;
-    return `${h}h ${m}m`;
-  };
+  const nowISO = () => new Date().toISOString();
+  function fmtHM(mins){ const h=Math.floor(mins/60); const m=mins%60; return `${h}h ${m}m`; }
+  function localHHMM(iso){ const d=new Date(iso); const hh=String(d.getHours()).padStart(2,'0'); const mm=String(d.getMinutes()).padStart(2,'0'); return `${hh}:${mm}`; }
+  function todayKey(){ const d=new Date(); const y=d.getFullYear(); const m=String(d.getMonth()+1).padStart(2,'0'); const dd=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dd}`; }
 
-  const todayKey = () => {
-    const d = new Date();
-    return d.toISOString().slice(0,10);
-  };
-
-  async function getPluginData(t, scope, key){
-    const data = await t.get(scope, 'shared', key);
-    return data == null ? null : data;
+  async function getActiveStart(t, memberId){ return await t.get('card','shared',KEY_ACTIVE_PREFIX+memberId); }
+  async function setActiveStart(t, memberId, isoOrNull){ return await t.set('card','shared',KEY_ACTIVE_PREFIX+memberId, isoOrNull||null); }
+  async function pushDayLog(t, memberId, entry){
+    const key = KEY_DAYLOG_PREFIX + memberId + ':' + todayKey();
+    const list = (await t.get('card','shared',key)) || [];
+    list.push(entry);
+    await t.set('card','shared',key,list);
   }
-  async function setPluginData(t, scope, key, value){
-    return t.set(scope, 'shared', key, value);
+  async function getTodayMinutesForMe(t){
+    const me = await t.member('id');
+    const key = KEY_DAYLOG_PREFIX + me.id + ':' + todayKey();
+    const list = (await t.get('card','shared',key)) || [];
+    return list.reduce((a,x)=>a+(x.minutes||0),0);
   }
 
-  async function appendChecklistAndComment(t, inISO, outISO, minutes){
-    const card = await t.card('id');
-    const cardId = card.id;
-    const note = `⏱️ Time entry: in ${inISO}, out ${outISO} — ${fmtHM(minutes)}`;
-    await t.post('/cards/' + cardId + '/actions/comments', { text: note });
-    const checklists = await t.getRestApi().get(`/cards/${cardId}/checklists`);
-    let checklist = checklists.find(cl => cl.name === CHECKLIST_NAME);
-    if(!checklist){
-      checklist = await t.getRestApi().post(`/cards/${cardId}/checklists`, { name: CHECKLIST_NAME });
+  async function ensureAuthorized(t){
+    const api = t.getRestApi();
+    const ok = await api.isAuthorized();
+    if(!ok){
+      await api.authorize({ scope:'read,write', expiration:'never', name: APP_NAME });
     }
-    await t.getRestApi().post(`/checklists/${checklist.id}/checkItems`, { name: `${todayKey()} • ${fmtHM(minutes)} • ${inISO} → ${outISO}` });
   }
+  async function addComment(api, cardId, text){ return await api.post(`/cards/${cardId}/actions/comments`,{ text }); }
+  async function getOrCreateChecklist(api, cardId, name){
+    const arr = await api.get(`/cards/${cardId}/checklists`);
+    if(Array.isArray(arr)){
+      const found = arr.find(c => (c.name||'').toLowerCase() === name.toLowerCase());
+      if(found) return found;
+    }
+    return await api.post(`/cards/${cardId}/checklists`,{ name });
+  }
+  async function addChecklistItem(api, checklistId, name){ return await api.post(`/checklists/${checklistId}/checkItems`,{ name }); }
 
   async function clockIn(t){
-    const me = await t.member('id', 'fullName');
-    const key = KEY_ACTIVE_PREFIX + me.id;
-    const active = await getPluginData(t, 'card', key);
-    if(active){
-      return t.alert({ message: 'Already clocked in on this card.', duration: 4 });
-    }
-    const nowISO = new Date().toISOString();
-    await setPluginData(t, 'card', key, { inISO: nowISO });
-    return t.alert({ message: `Clocked in at ${nowISO}`, duration: 4 });
+    const me = await t.member('id','fullName');
+    const active = await getActiveStart(t, me.id);
+    if(active){ await t.alert({ message:'你已经在计时中。', duration:4 }); return; }
+    await setActiveStart(t, me.id, nowISO());
+    await t.alert({ message:'Clock In 开始！', duration:3 });
   }
 
   async function clockOut(t){
-    const me = await t.member('id', 'fullName');
-    const key = KEY_ACTIVE_PREFIX + me.id;
-    const active = await getPluginData(t, 'card', key);
-    if(!active){
-      return t.alert({ message: 'You are not clocked in on this card.', duration: 4 });
+    const me = await t.member('id','fullName');
+    const startISO = await getActiveStart(t, me.id);
+    if(!startISO){ await t.alert({ message:'当前没有正在计时的记录。', duration:4 }); return; }
+    const endISO = nowISO();
+    let minutes = Math.round((new Date(endISO)-new Date(startISO))/60000);
+    if(minutes<1) minutes=1;
+
+    await pushDayLog(t, me.id, { in:startISO, out:endISO, minutes });
+    await setActiveStart(t, me.id, null);
+
+    try{
+      await ensureAuthorized(t);
+      const api = t.getRestApi();
+      const { id: cardId } = await t.card('id');
+      const comment = `🕒 ${me.fullName} clocked out — ${fmtHM(minutes)}  (in ${localHHMM(startISO)} → out ${localHHMM(endISO)})`;
+      await addComment(api, cardId, comment);
+      const checklist = await getOrCreateChecklist(api, cardId, CHECKLIST_NAME);
+      const itemText = `⏱ ${fmtHM(minutes)} — ${localHHMM(startISO)} → ${localHHMM(endISO)} (${todayKey()})`;
+      await addChecklistItem(api, checklist.id, itemText);
+    }catch(e){
+      console.warn('Timecard REST error:', e);
+      await t.alert({ message:'已结束计时，但写评论/清单失败（可稍后再试）', duration:6 });
     }
-    const outISO = new Date().toISOString();
-    const inISO = active.inISO;
-    const minutes = Math.max(1, Math.round((new Date(outISO) - new Date(inISO)) / 60000));
-    const entries = (await getPluginData(t, 'card', KEY_ENTRIES)) || [];
-    const meId = me.id;
-    entries.push({ memberId: meId, inISO, outISO, minutes, day: todayKey() });
-    await setPluginData(t, 'card', KEY_ENTRIES, entries);
-    await setPluginData(t, 'card', key, null);
-    await appendChecklistAndComment(t, inISO, outISO, minutes);
-    return t.alert({ message: `Clocked out — ${fmtHM(minutes)} recorded.`, duration: 5 });
+    await t.alert({ message:`Clock Out 结束，总计 ${fmtHM(minutes)}`, duration:4 });
   }
 
-  async function getTodayMinutesForMe(t){
-    const me = await t.member('id');
-    const entries = (await getPluginData(t, 'card', KEY_ENTRIES)) || [];
-    const day = todayKey();
-    return entries
-      .filter(e => e.memberId === me.id && e.day === day)
-      .reduce((sum, e) => sum + (e.minutes || 0), 0);
-  }
-
-  window.TrelloPowerUp.initialize({
-    'card-buttons': function(t, options){
-      return Promise.all([
-        t.member('id', 'fullName'),
-      ]).then(async () => {
-        const me = await t.member('id', 'fullName');
-        const active = await getPluginData(t, 'card', KEY_ACTIVE_PREFIX + me.id);
+  window.TrelloPowerUp.initialize(
+    {
+      'card-buttons': async function(t){
+        const me = await t.member('id','fullName');
+        const active = await getActiveStart(t, me.id);
         const label = active ? 'Clock Out' : 'Clock In';
-        const callback = active ? () => clockOut(t) : () => clockIn(t);
-        return [{
-          icon: 'https://raw.githubusercontent.com/your-org/your-repo/main/clock.svg',
-          text: label,
-          callback
-        }];
-      });
+        const cb = active ? () => clockOut(t) : () => clockIn(t);
+        return [{ text: label, callback: cb }];
+      },
+      'card-badges': async function(t){
+        const mins = await getTodayMinutesForMe(t);
+        if(mins<=0) return [];
+        return [{ text: 'Today: ' + fmtHM(mins), color: 'blue' }];
+      },
+      'show-settings': function(t){
+        return t.modal({ title:'Timecard Settings', url:'./index.html', height:220 });
+      }
     },
-
-    'card-badges': async function(t){
-      const mins = await getTodayMinutesForMe(t);
-      if(mins <= 0) return [];
-      return [{
-        text: 'Today: ' + fmtHM(mins),
-        color: 'blue'
-      }];
-    },
-
-    'show-settings': function(t){
-      return t.modal({
-        title: 'Timecard Settings',
-        url: './settings.html',
-        height: 220
-      });
-    }
-  }, { appKey: '0fc02c029029a4e0d8bfa032fbf58387' });
-
+    { appKey: APP_KEY, appName: APP_NAME }
+  );
 })();
+
