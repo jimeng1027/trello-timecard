@@ -1,10 +1,4 @@
 {
-// ─────────────────────────────────────────────────────────────────────────────
-// File: manifest.json
-// Host these 3 files (manifest.json, index.html, client.js) on HTTPS (e.g. GitHub Pages).
-// Then register the Power‑Up at https://trello.com/power-ups/admin and add it to a board.
-// ─────────────────────────────────────────────────────────────────────────────
-{
   "manifest_version": 1,
   "name": "Timecard — Clock In/Out",
   "slug": "timecard-clock-in-out",
