@@ -1,0 +1,34 @@
+{
+// ─────────────────────────────────────────────────────────────────────────────
+// File: manifest.json
+// Host these 3 files (manifest.json, index.html, client.js) on HTTPS (e.g. GitHub Pages).
+// Then register the Power‑Up at https://trello.com/power-ups/admin and add it to a board.
+// ─────────────────────────────────────────────────────────────────────────────
+{
+  "manifest_version": 1,
+  "name": "Timecard — Clock In/Out",
+  "slug": "timecard-clock-in-out",
+  "scopes": ["read", "write"],
+  "connectors": {},
+  "author": "You",
+  "description": "One‑click clock in/out on cards. Logs entries and shows total time.",
+  "icon": {
+    "url": "https://raw.githubusercontent.com/your-org/your-repo/main/icon.png"
+  },
+  "capabilities": {
+    "card-buttons": {
+      "url": "https://YOUR-HOST/index.html#card-buttons"
+    },
+    "card-badges": {
+      "url": "https://YOUR-HOST/index.html#card-badges"
+    },
+    "show-settings": {
+      "url": "https://YOUR-HOST/index.html#settings"
+    }
+  },
+  "domains": ["YOUR-HOST"],
+  "app": {
+    "frameUrl": "https://YOUR-HOST/index.html"
+  }
+}
+}
